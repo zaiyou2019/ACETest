@@ -1,13 +1,18 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.proxy import Proxy, ProxyType
 import unittest
 import time
+import os
 from vmwc import VMWareClient
+from HtmlTestRunner import HTMLTestRunner
 
-class updateTestCase(unittest.TestCase):
+FILE_PATH = str(os.path.dirname(os.path.realpath(__file__)))
+
+class activeMgmtTestCase(unittest.TestCase):
 
     def setUp(self):
         host = '10.124.82.245'
@@ -26,15 +31,13 @@ class updateTestCase(unittest.TestCase):
         self.browser.maximize_window()
         self.addCleanup(self.browser.quit)
 
-    def testUpdate(self):
+    def go_to_homepage(self):
+        user_account = 'zhangw19'
+        user_password = ''
+
         self.browser.get('https://myvxrail-staging.dell.com/')
 
-        user_account = 'zhangw19'
-        user_password = 'Zaiyou@2019'
-        cluster_name = 'vcluster538'
-        target_version = '4.7.510'
-
-        elem_username = self.find_element('ID','username')
+        elem_username = self.find_element('ID', 'username')
         elem_username.send_keys(user_account)
 
         elem_password = self.find_element('ID', 'Password')
@@ -55,54 +58,73 @@ class updateTestCase(unittest.TestCase):
         btn_closewelcome = self.find_element('XPATH', '//button')
         btn_closewelcome.click()
 
+    def go_to_updates_page(self):
         elem_updates = self.find_element('NAME', 'updates')
         elem_updates.click()
 
         elem_clr_icon = self.find_element('XPATH', '//clr-icon[@shape="close"]')
         elem_clr_icon.click()
 
-        time.sleep(3)
-        checkbox_preckeck = self.find_element('XPATH', '//label[@name="PRECHECK"]')
-        checkbox_preckeck.click()
+    def updates_page_selection(self, task_type, clusters_upgrade_path):
+        for task in task_type:
+            time.sleep(3)
+            checkbox_task = self.find_element('XPATH', '//label[@name="{}"]'.format(task.upper()))
+            checkbox_task.click()
 
-        time.sleep(3)
-        checkbox_update = self.find_element('XPATH', '//label[@name="UPGRADE"]')
-        checkbox_update.click()
+        for cluster in clusters_upgrade_path:
+            cluster_name =cluster.get('cluster_name')
+            target_version = cluster.get('target_version')
 
-        cluster_xpath = '//span[@title="{}"]'.format(cluster_name)
-        print(cluster_xpath)
-        checkbox_cluster = self.find_element('XPATH', cluster_xpath)
-        checkbox_cluster.click()
+            cluster_xpath = '//span[@title="{}"]'.format(cluster_name)
+            checkbox_cluster = self.find_element('XPATH', cluster_xpath)
+            checkbox_cluster.click()
 
-        dropdown_version = self.find_element('XPATH', '//span[@title="{}"]//following::div[@name="dropdown-button-"][1]'.format(cluster_name))
-        dropdown_version.click()
+            dropdown_version = self.find_element('XPATH', '//span[@title="{}"]//following::div[@name="dropdown-button-"][1]'.format(cluster_name))
+            dropdown_version.click()
 
-        select_version = self.find_element('XPATH', '//span[@title="{}"]//following::a[@name="{}"][1]'.format(cluster_name, target_version))
-        select_version.click()
+            select_version = self.find_element('XPATH', '//span[@title="{}"]//following::a[@name="{}"][1]'.format(cluster_name, target_version))
+            select_version.click()
 
-        btn_run_task = self.find_element('XPATH', '//button[class_name="btn btn-primary tasks-button"]')
-        btn_run_task.click()
+        btn_run_task = self.find_element('XPATH', '//button[text()="RUN TASK(S)"]')
+        self.browser.execute_script("arguments[0].click();", btn_run_task)
 
-        btn_advisories_next = self.find_element('XPATH', '//button[text()="Next"]')
-        btn_advisories_next.click()
+    def wizard_selection(self, task_type):
+        # task_type.sort()
+        # task_type = '_'.join(task_type)
+        if 'update' in task_type:
+            btn_advisories_next = self.find_element('XPATH', '//button[text()="Next"]')
+            btn_advisories_next.click()
 
-        elem_vc_username = self.find_element('name', 'username')
-        elem_vc_username.send_keys("administrator@vsphere.local")
+            elem_vc_username = self.find_element('name', 'username')
+            elem_vc_username.send_keys("administrator@vsphere.local")
 
-        elem_vc_password =self.find_element('name', 'password')
-        elem_vc_password.send_keys("Testvxrail123!")
+            elem_vc_password =self.find_element('name', 'password')
+            elem_vc_password.send_keys("Testvxrail123!")
 
-        btn_enter = self.find_element('XPATH', '//button[text()="Enter"]')
-        btn_enter.click()
+            btn_enter = self.find_element('XPATH', '//button[text()="Enter"]')
+            btn_enter.click()
 
-        btn_verf_cred_next = self.find_element('XPATH', '//button[text()="Next"]')
-        btn_verf_cred_next.click()
+            btn_verf_cred_next = self.find_element('XPATH', '//button[text()="Next"]')
+            btn_verf_cred_next.click()
 
-        btn_select_version_next = self.find_element('XPATH', '//button[text()="Next"]')
-        btn_select_version_next.click()
+            btn_select_version_next = self.find_element('XPATH', '//button[text()="Next"]')
+            btn_select_version_next.click()
 
-        btn_summary_finish = self.find_element('XPATH', '//button[text()="Finish"]')
-        btn_summary_finish.click()
+            btn_summary_finish = self.find_element('XPATH', '//button[text()="Finish"]')
+            btn_summary_finish.click()
+        else:
+            btn_advisories_next = self.find_element('XPATH', '//button[@class="btn btn-primary btn-sm"]')
+            btn_advisories_next.click()
+
+
+    def testUpdate(self):
+
+        task_type = ['precheck']
+        clusters_upgrade_path = [{'cluster_name': 'vcluster442', 'target_version': '4.7.410'}]
+        self.go_to_homepage()
+        self.go_to_updates_page()
+        self.updates_page_selection(task_type=task_type, clusters_upgrade_path=clusters_upgrade_path)
+        self.wizard_selection(task_type)
 
         # job_id = self.find_element('XPATH', '//span[@class="ng-star-inserted"]').get_attribute('value')
 
@@ -143,4 +165,6 @@ def vm_poweron(host, port, username, password, vm_name):
                 vm.power_on()
 
 if __name__ == '__main__':
-    unittest.main(verbosity=2)
+    # unittest.main(verbosity=2)
+    report_file = 'test_active_mgmt.html'
+    unittest.main(testRunner=HTMLTestRunner())
