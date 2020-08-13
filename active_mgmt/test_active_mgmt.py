@@ -6,7 +6,9 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.proxy import Proxy, ProxyType
 import unittest
 import time
+from datetime import datetime, timedelta
 import os
+import re
 from HtmlTestRunner import HTMLTestRunner
 
 FILE_PATH = str(os.path.dirname(os.path.realpath(__file__)))
@@ -77,9 +79,8 @@ class activeMgmtTestCase(unittest.TestCase):
         self.browser.execute_script("arguments[0].click();", btn_run_task)
 
     def wizard_selection(self, task_type):
-        # task_type.sort()
-        # task_type = '_'.join(task_type)
-        if 'update' in task_type:
+
+        if 'upgrade' in task_type:
             btn_advisories_next = self.find_element('XPATH', '//button[text()="Next"]')
             btn_advisories_next.click()
 
@@ -103,19 +104,46 @@ class activeMgmtTestCase(unittest.TestCase):
         else:
             btn_advisories_next = self.find_element('XPATH', '//button[@class="btn btn-primary btn-sm"]')
             btn_advisories_next.click()
+            
+    def go_to_job_page(self):
+        btn_job_page = self.find_element('XPATH', '//button/clr-icon[@shape="briefcase"]')
+        btn_job_page.click()
+        link_view_all_jobs = self.find_element('XPATH', '//a[text()="View All Jobs"]')
+        link_view_all_jobs.click()
 
 
     def testUpdate(self):
         user_account = 'zhangw19'
         user_password = 'Zaiyou@2019'
-        task_type = ['precheck']
+        task_type = ['precheck', 'upgrade']
         clusters_upgrade_path = [{'cluster_name': 'vcluster442', 'target_version': '4.7.410'}]
         self.go_to_homepage(user_account=user_account, user_password=user_password)
-        self.go_to_updates_page()
-        self.updates_page_selection(task_type=task_type, clusters_upgrade_path=clusters_upgrade_path)
-        self.wizard_selection(task_type)
+        # self.go_to_updates_page()
+        # self.updates_page_selection(task_type=task_type, clusters_upgrade_path=clusters_upgrade_path)
+        # self.wizard_selection(task_type)
+        start_time = datetime.now()
+        self.go_to_job_page()
 
-        # job_id = self.find_element('XPATH', '//span[@class="ng-star-inserted"]').get_attribute('value')
+        job_id = self.find_element('XPATH', '//div[@class="datagrid-scrolling-cells"][1]/clr-dg-cell[1]').text
+        job_type = self.find_element('XPATH', '//clr-dg-cell[text()="{}"]//following::clr-dg-cell[1]'.format(job_id)).text
+        job_status = self.find_element('XPATH', '//clr-dg-cell[text()="{}"]//following::clr-dg-cell[2]'.format(job_id)).text
+        job_start_time = self.find_element('XPATH', '//clr-dg-cell[text()="{}"]//following::clr-dg-cell[3]'.format(job_id)).text
+        job_datetime = datetime.strptime(job_start_time, "%B %d, %Y %H:%M %p %Z")
+        time_delta = (start_time - job_datetime ).total_seconds()
+        self.assertTrue(0 < time_delta < 10, "Job not created in time !")
+        time_interval = 5
+        time_out = 0
+        while(time_out < 100):
+            job_status = self.find_element('XPATH', '//clr-dg-cell[text()="{}"]//following::clr-dg-cell[2]'.format(job_id)).text
+            if re.search('Success',job_status) or re.search('Error',job_status):
+                detail = self.find_element('XPATH', '//clr-dg-cell[text()="{}"]//ancestor::div[@class="datagrid-row-scrollable"]//following::td[2]/span'.format(job_id)).text
+                self.assertEqual('Success', job_status, "Job run failed! details: {}".format(detail))
+                break
+            time_out += 5
+            time.sleep(time_interval)
+
+
+
 
     def find_element(self, method, method_value):
         wait = WebDriverWait(self.browser, 20)
@@ -140,5 +168,4 @@ class activeMgmtTestCase(unittest.TestCase):
 
 if __name__ == '__main__':
     # unittest.main(verbosity=2)
-    report_file = 'test_active_mgmt.html'
     unittest.main(testRunner=HTMLTestRunner())
