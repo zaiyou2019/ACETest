@@ -7,33 +7,21 @@ from selenium.webdriver.common.proxy import Proxy, ProxyType
 import unittest
 import time
 import os
-from vmwc import VMWareClient
 from HtmlTestRunner import HTMLTestRunner
 
 FILE_PATH = str(os.path.dirname(os.path.realpath(__file__)))
 
+
 class activeMgmtTestCase(unittest.TestCase):
 
     def setUp(self):
-        host = '10.124.82.245'
-        port = '37898'
-        username = 'administrator@vsphere.local'
-        password = 'Testvxrail123!'
-        vm_name = ['esx_V045001', 'esx_V045002', 'esx_V045003']
-        snapshot_name = 'V450_47300'
-
-        # revert_snapshot(host, port, username, password, vm_name, snapshot_name)
-        # vm_poweron(host, port, username, password, vm_name)
-
         chromeOptions = webdriver.ChromeOptions()
         chromeOptions.add_argument("--proxy-server=http://10.124.82.245:40000")
         self.browser = webdriver.Chrome(chrome_options=chromeOptions)
         self.browser.maximize_window()
         self.addCleanup(self.browser.quit)
 
-    def go_to_homepage(self):
-        user_account = 'zhangw19'
-        user_password = ''
+    def go_to_homepage(self, user_account, user_password):
 
         self.browser.get('https://myvxrail-staging.dell.com/')
 
@@ -118,10 +106,11 @@ class activeMgmtTestCase(unittest.TestCase):
 
 
     def testUpdate(self):
-
+        user_account = 'zhangw19'
+        user_password = 'Zaiyou@2019'
         task_type = ['precheck']
         clusters_upgrade_path = [{'cluster_name': 'vcluster442', 'target_version': '4.7.410'}]
-        self.go_to_homepage()
+        self.go_to_homepage(user_account=user_account, user_password=user_password)
         self.go_to_updates_page()
         self.updates_page_selection(task_type=task_type, clusters_upgrade_path=clusters_upgrade_path)
         self.wizard_selection(task_type)
@@ -148,21 +137,6 @@ class activeMgmtTestCase(unittest.TestCase):
     def tearDown(self):
         self.browser.quit()
 
-
-def revert_snapshot(host, port, username, password, vm_name, snapshot_name):
-    with VMWareClient(host, username, password, port) as client:
-        for vm in client.get_virtual_machines():
-            if vm.name in vm_name:
-                for snapshot in vm.get_snapshots():
-                    if snapshot.name == snapshot_name:
-                        snapshot.revert()
-
-
-def vm_poweron(host, port, username, password, vm_name):
-    with VMWareClient(host, username, password, port) as client:
-        for vm in client.get_virtual_machines():
-            if vm.name in vm_name:
-                vm.power_on()
 
 if __name__ == '__main__':
     # unittest.main(verbosity=2)
