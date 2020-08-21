@@ -14,7 +14,8 @@ logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(filename)s[line:%
 # Please check the following information before upgrade adc !!!
 tgz_file_name = 'DCManager_v_1_3_201_20200807-0640.tgz'
 vxms = [
-        {'ip': '10.124.82.245', 'port': '30945', 'username': 'root', 'password': 'Testvxrail123!'}
+        # {'ip': '10.124.82.245', 'port': '30450', 'username': 'root', 'password': 'Testvxrail123!'},
+        {'ip': '10.124.82.245', 'port': '30538', 'username': 'root', 'password': 'Testvxrail123!'}
         ]
 
 def main():
@@ -56,6 +57,8 @@ def update_ace_war(user, ip, passwd, port):
 
 
 def send_files_to_vxm(vxm_ip, vxm_port, username, vxm_password):
+    os.system('cp /home/mystic/PycharmProjects/railai-testcases/qa-tools/py_lcm_workaround.py '
+              '{}/scripts'.format(FILE_PATH))
     remote_path = '/home/mystic'
     local_path = FILE_PATH + '/scripts/*'
     send_file(vxm_ip, vxm_port, username, vxm_password, local_path, remote_path)
