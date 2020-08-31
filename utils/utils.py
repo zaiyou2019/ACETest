@@ -322,7 +322,7 @@ class SSHExecutor(object):
                 output = stdout.read().strip()
             msg = 'Command failed with:\n{0}'.format(output)
             raise RemoteCommmandError(msg, cmdstr, retcode, output)
-        output = stdout.read().strip()
+        # output = stdout.read().strip()
         if isinstance(output, bytes):
             output = str(output, encoding='utf8')
         if len(output) > 0:
