@@ -12,10 +12,10 @@ LOG_PATH = FILE_PATH + '/log/'
 logging.basicConfig(level=logging.INFO,format='%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s')
 
 # Please check the following information before upgrade adc !!!
-tgz_file_name = 'DCManager_v_1_3_201_20200824-1004.tgz'
+tgz_file_name = 'DCManager_v_1_3_201_20200904-0630.tgz'
+
 vxms = [
-        # {'ip': '10.124.82.245', 'port': '30450', 'username': 'root', 'password': 'Testvxrail123!'},
-        {'ip': '20.12.101.200', 'port': '22', 'username': 'root', 'password': 'Testvxrail123!'}
+        {'ip': '10.124.82.245', 'port': '30351', 'username': 'root', 'password': 'Testvxrail123!'}
         ]
 
 def main():
@@ -28,9 +28,9 @@ def main():
         vxm_password = vxm.get('password')
 
         logging.info('Start to upgrade vxm: {} !'.format(vxm_port))
-        send_files_to_vxm(vxm_ip, vxm_port, vxm_username, vxm_password)
         downgrade_adc(vxm_ip, vxm_port, vxm_username, vxm_password)
         upgrade_patch(vxm_ip, vxm_port, vxm_username, vxm_password)
+        send_files_to_vxm(vxm_ip, vxm_port, vxm_username, vxm_password)
         update_ace_war(vxm_ip, vxm_port, vxm_username, vxm_password)
 
 
@@ -95,6 +95,9 @@ def get_credential():
           '-H "Authorization: Basic YWRtaW5pc3RyYXRvckB2c3BoZXJlLmxvY2FsOlRlc3R2eHJhaWwxMjMh"'
 
 def update_ace_war(ip, port, user, passwd):
+    local_path = FILE_PATH + '/scripts/ace.war'
+    remote_path = '/home/mystic'
+    send_file(ip, port, user, passwd, local_path, remote_path)
     cmd_upgrade_patch = 'sudo -u tcserver cp /home/mystic/ace.war /usr/lib/vmware-marvin/marvind/webapps/'
     with SSHExecutor(ip, port, user, passwd) as ssh_runner:
         cmd_return = ssh_runner.exec_command(cmd_upgrade_patch)
@@ -108,32 +111,50 @@ def update_ace_war(ip, port, user, passwd):
 
 
 def send_files_to_vxm(vxm_ip, vxm_port, username, vxm_password):
-    os.system('ssh-keygen -f "/home/mystic/.ssh/known_hosts" -R "[10.124.82.245]:{}"'.format(vxm_port))
-    os.system('cp /home/mystic/PycharmProjects/railai-testcases/qa-tools/py_lcm_workaround.py '
-              '{}/scripts'.format(FILE_PATH))
+    file_lcm_wa = '/home/mystic/PycharmProjects/railai-testcases/qa-tools/py_lcm_workaround.py'
+    file_send_msg = FILE_PATH + '/scripts/' + 'send_message_start_collection.py'
     remote_path = '/home/mystic'
-    local_path = FILE_PATH + '/scripts/*'
-    send_file(vxm_ip, vxm_port, username, vxm_password, local_path, remote_path)
+    files = [file_lcm_wa, file_send_msg]
+    for local_file in files:
+        send_file(vxm_ip, vxm_port, username, vxm_password, local_file, remote_path)
 
 
 def upgrade_patch(ip, port, user, passwd):
-    time.sleep(3)
+    dcmanager_version = '_'.join(tgz_file_name.split('_')[0:-1]) + '.tgz'
+    cmd = 'sed -e "s/DCManager_v.*tgz/{}/" {}/scripts/update_script.py > {}/scripts/update_script.py.new'.format(dcmanager_version, FILE_PATH, FILE_PATH)
+    os.system(cmd)
+
+    local_path = FILE_PATH + '/scripts/update_script.py.new'
+    remote_path = '/home/mystic/update_script.py'
+    send_file(ip, port, user, passwd, local_path, remote_path)
+
+    remote_path = '/home/mystic'
+    local_path = FILE_PATH + '/scripts/' + tgz_file_name
+    send_file(ip, port, user, passwd, local_path, remote_path)
+
+    patch = '_'.join(tgz_file_name.split('_')[0:-1]) + '.tgz'
+    cmd_mkdir = 'sudo -u tcserver mkdir -p /mystic/telemetry/DCManager/tmp/adc_patches'
+    cmd_mv_patch = 'mv /home/mystic/{} /mystic/telemetry/DCManager/tmp/adc_patches/{}'.format(tgz_file_name, patch)
     cmd_upgrade_patch = '/mystic/telemetry/DCManager/venv/bin/python /home/mystic/update_script.py; echo $?'
+    cmd_list = [cmd_mkdir, cmd_mv_patch, cmd_upgrade_patch]
     with SSHExecutor(ip, port, user, passwd) as ssh_runner:
-        cmd_return = ssh_runner.exec_command(cmd_upgrade_patch)
-        if cmd_return == 0:
-            logging.info("upgrade patch command run successfully!")
+        for cmd in cmd_list:
+            cmd_return = ssh_runner.exec_command(cmd)
+            if cmd_return == 0:
+                logging.info("command run successfully!")
 
 
 def downgrade_adc(ip, port, user, passwd):
+    local_path = FILE_PATH + '/scripts/downgrade_adc.sh'
+    remote_path = '/home/mystic'
+    send_file(ip, port, user, passwd, local_path, remote_path)
     with SSHExecutor(ip, port, user, passwd) as ssh_runner:
         cmd_return = ssh_runner.exec_command("sudo -u tcserver /bin/bash /home/mystic/downgrade_adc.sh {}; echo $?".format(tgz_file_name))
         logging.info(cmd_return)
-        if cmd_return == 0:
-            logging.info("downgrade adc command run successfully!")
 
 
 def send_file(ip, port, username, password, local_file, remote_file):
+    os.system('ssh-keygen -f "/home/mystic/.ssh/known_hosts" -R "[{}]:{}"'.format(ip, port))
     cmd = 'sshpass -p {} scp -P {} {} {}@{}:{}'.format(password, port, local_file, username, ip, remote_file)
     logging.info(cmd)
     r = os.system(cmd)
@@ -142,15 +163,22 @@ def send_file(ip, port, username, password, local_file, remote_file):
 
 
 def download_tgz():
+    version = tgz_file_name.split('_')[2:5]
+    if int(version[2]) % 2 == 1:
+        version[2] = str(int(version[2])+1)
+        prd_type = 'test'
+    else:
+        prd_type = 'prod'
+    dcmanager_version = '.'.join(version)
     download_path = 'https://amaas-eos-drm1.cec.lab.emc.com/artifactory/VxRail-ACE-pypi-staging-local-drm/' \
-                    'release/DCManager/release_1.3.202/patch/python23/test/'
+                    'release/DCManager/release_{}/patch/python23/{}/'.format(dcmanager_version, prd_type)
     if os.path.exists(FILE_PATH+'/scripts/'+tgz_file_name):
         logging.info("tgz file has been already downloaded. skip download!")
     else:
         download_file = download_path + tgz_file_name
         logging.info('start to download {}'.format(download_file))
         os.chdir(FILE_PATH + '/scripts')
-        logging.info (os.getcwd())
+        logging.info(os.getcwd())
         download_result = os.system('wget {} --no-check-certificate'.format(download_file))
         logging.info('download_result: {}'.format(download_result))
         if os.path.exists(FILE_PATH + '/scripts/' + tgz_file_name):

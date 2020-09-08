@@ -31,4 +31,4 @@ adcPatchesPath="/mystic/telemetry/DCManager/tmp/adc_patches"
 if [ ! -d "$adcPatchesPath" ]; then
   mkdir -p $adcPatchesPath
 fi
-cp /home/mystic/"$1" /mystic/telemetry/DCManager/tmp/adc_patches/DCManager_v_1_3_201.tgz
+
